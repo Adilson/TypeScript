@@ -10,6 +10,13 @@ namespace ts.formatting {
 
         constructor() {
             this.globalRules = new Rules();
+
+            // Initialize the rulesMap with the high priority rules
+            const activeRules = this.createActiveRules();
+            const rulesMap = RulesMap.create(activeRules);
+
+            this.activeRules = activeRules;
+            this.rulesMap = rulesMap;
         }
 
         public getRuleName(rule: Rule): string {
@@ -26,17 +33,22 @@ namespace ts.formatting {
 
         public ensureUpToDate(options: ts.FormatCodeSettings) {
             if (!this.options || !ts.compareDataObjects(this.options, options)) {
-                const activeRules = this.createActiveRules(options);
-                const rulesMap = RulesMap.create(activeRules);
+                const highPriRuleIndex = this.globalRules.HighPriorityCommonRules.length;
+                const oldUserRules = this.activeRules.slice(highPriRuleIndex);
+                const newActiveRules = this.createActiveRules(options);
+                const newUserRules = newActiveRules.slice(highPriRuleIndex);
 
-                this.activeRules = activeRules;
-                this.rulesMap = rulesMap;
+                this.rulesMap.Update(oldUserRules, newUserRules);
+                this.activeRules = newActiveRules;
                 this.options = ts.clone(options);
             }
         }
 
-        private createActiveRules(options: ts.FormatCodeSettings): Rule[] {
+        private createActiveRules(options?: ts.FormatCodeSettings): Rule[] {
             let rules = this.globalRules.HighPriorityCommonRules.slice(0);
+            if (!options) {
+                return rules;
+            }
 
             if (options.insertSpaceAfterConstructor) {
                 rules.push(this.globalRules.SpaceAfterConstructor);
